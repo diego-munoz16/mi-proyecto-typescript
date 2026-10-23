@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import { validationResult } from 'express-validator'
 import slug from 'slug'
 import User from '../models/User' 
-import { hashPassword } from '../utils/auth'
+import { comparePassword, hashPassword } from '../utils/auth'
 
 export const createAccount = async (req: Request, res: Response) => {
     
@@ -35,4 +35,19 @@ export const createAccount = async (req: Request, res: Response) => {
     await user.save()
 
     res.status(201).send('User created successfully');
+}
+
+export const login = async (req: Request, res: Response) => {
+    const { email, password } = req.body
+
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' })
+    }
+
+    const user = await User.findOne({ email })
+    if (!user || !(await comparePassword(password, user.password))) {  // Compara la contraseña ingresada con la contraseña hasheada almacenada en la base de datos
+        return res.status(401).json({ error: 'Invalid email or password' })
+    }
+
+    return res.status(200).send('Se inicio sesion con exito')
 }
