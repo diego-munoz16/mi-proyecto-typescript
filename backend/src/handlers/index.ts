@@ -1,16 +1,10 @@
-import { Request, Response } from 'express'
 import { validationResult } from 'express-validator'
 import slug from 'slug'
-import User from '../models/User' 
-import { comparePassword, hashPassword } from '../utils/auth'
+import User from '../models/User'
+import { checkPassword, hashPassword } from '../utils/auth'
+import { Request, Response } from 'express' 
 
 export const createAccount = async (req: Request, res: Response) => {
-    
-    // Validacion de errores
-    let errors = validationResult(req)
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() })
-    }
 
     const { email,  password } = req.body
 
@@ -38,16 +32,23 @@ export const createAccount = async (req: Request, res: Response) => {
 }
 
 export const login = async (req: Request, res: Response) => {
+
+    let errors = validationResult(req)
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() })
+    }
+
     const { email, password } = req.body
 
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' })
-    }
-
     const user = await User.findOne({ email })
-    if (!user || !(await comparePassword(password, user.password))) {  // Compara la contraseña ingresada con la contraseña hasheada almacenada en la base de datos
-        return res.status(401).json({ error: 'Invalid email or password' })
+    if (!user) {
+        const error = new Error('User not found')
+        return res.status(404).json({ error: error.message })
     }
-
-    return res.status(200).send('Se inicio sesion con exito')
+    
+    const isPasswordValid = await checkPassword(password, user.password)
+    if (!isPasswordValid) {
+        const error = new Error('Password incorrect')
+        return res.status(401).json({ error: error.message })
+    }
 }
